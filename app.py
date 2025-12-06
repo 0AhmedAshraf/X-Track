@@ -10,7 +10,7 @@ import random
 from datetime import date, timedelta, datetime
 
 # ==========================================
-# 1. إعداد الصفحة والستايل (Light Mode Fixed)
+# 1. إعداد الصفحة والستايل (Light Mode ☀️)
 # ==========================================
 st.set_page_config(
     page_title="X-Track Cloud ☁️",
@@ -19,71 +19,42 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- CSS Styling (Light Mode ☀️) ---
+# --- CSS Styling ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
     html, body, [class*="css"] { font-family: 'Cairo', sans-serif; }
-    
-    /* خلفية ونصوص */
     .stApp { background-color: #f8f9fa !important; color: #212529 !important; }
-    h1, h2, h3, h4, h5, p, label, div { color: #212529; }
+    h1, h2, h3, h4, h5, p, label, div, span { color: #212529 !important; }
     
-    /* الكروت */
-    .premium-card { 
-        background-color: #ffffff !important; 
-        padding: 20px; 
-        border-radius: 20px; 
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05); 
-        margin-bottom: 15px; 
-        border: 1px solid #e9ecef; 
+    /* Inputs */
+    .stTextInput input, .stNumberInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] > div {
+        background-color: #ffffff !important; color: #333333 !important; border-color: #ced4da !important;
     }
+    ul[data-baseweb="menu"] { background-color: #ffffff !important; }
+    li[data-baseweb="option"] { color: #333333 !important; }
+    li[data-baseweb="option"]:hover, li[aria-selected="true"] { background-color: #e9ecef !important; }
+
+    /* Cards */
+    .premium-card { background-color: #ffffff !important; padding: 20px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 15px; border: 1px solid #dee2e6; }
+    .food-item-box { background-color: #ffffff !important; border-radius: 15px; padding: 15px; margin-bottom: 10px; border: 1px solid #e9ecef; display: flex; justify-content: space-between; align-items: center; color: #212529; box-shadow: 0 2px 5px rgba(0,0,0,0.03); }
     
-    /* كروت الطعام */
-    .food-item-box { 
-        background-color: #ffffff !important; 
-        border-radius: 15px; 
-        padding: 15px; 
-        margin-bottom: 10px; 
-        border: 1px solid #dee2e6; 
-        display: flex; 
-        justify-content: space-between; 
-        align-items: center; 
-        color: #212529;
-    }
+    /* Buttons */
+    .stButton button { background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); color: white !important; border: none; border-radius: 12px; height: 45px; font-weight: bold; box-shadow: 0 4px 10px rgba(52, 152, 219, 0.2); }
+    .calc-option { background: #ffffff; border: 1px solid #ced4da; border-radius: 15px; padding: 15px; text-align: center; color: #212529; }
     
-    /* الأزرار */
-    .stButton button { 
-        background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-        color: white !important; 
-        border: none; 
-        border-radius: 12px; 
-        height: 45px; 
-        font-weight: bold; 
-    }
+    /* Alerts */
+    .health-alert { padding: 15px; border-radius: 10px; margin: 10px 0; border-right: 5px solid; color: #333; }
+    .alert-green { background-color: #d1e7dd; border-color: #0f5132; color: #0f5132; }
+    .alert-red { background-color: #f8d7da; border-color: #842029; color: #842029; }
     
-    /* خيارات الحاسبة */
-    .calc-option { 
-        background: #ffffff; 
-        border: 1px solid #ced4da; 
-        border-radius: 15px; 
-        padding: 15px; 
-        text-align: center; 
-        color: #212529;
-    }
-    
-    /* الرسائل */
-    .stChatMessage { background-color: #ffffff; border: 1px solid #dee2e6; }
-    
-    /* إصلاح القوائم */
-    div[data-baseweb="select"] > div { background-color: white !important; color: #333 !important; }
+    .stDeployButton {display:none;}
     </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
 # 2. الإعدادات والاتصال
 # ==========================================
-# الاتصال بـ Google Sheets
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 SHEET_ENTRIES = "entries"
@@ -99,57 +70,41 @@ if GEMINI_API_KEY:
 else: model = None
 
 # ==========================================
-# 3. دوال التعامل مع الداتا (Robust)
+# 3. دوال التعامل مع الداتا
 # ==========================================
-
 def read_sheet_safe(worksheet):
-    """قراءة الشيت بأمان مع التعامل مع الأخطاء"""
     try:
         df = conn.read(worksheet=worksheet, ttl=0)
         return df if df is not None else pd.DataFrame()
-    except Exception:
-        return pd.DataFrame()
+    except Exception: return pd.DataFrame()
 
 def write_sheet_safe(worksheet, df):
-    """كتابة الشيت"""
     try:
         conn.update(worksheet=worksheet, data=df)
         st.cache_data.clear()
-    except Exception as e:
-        st.error(f"خطأ في الحفظ: {e}")
+    except Exception as e: st.error(f"Error: {e}")
 
 def get_db_goals():
     df = read_sheet_safe(SHEET_GOALS)
-    if not df.empty and 'cal_goal' in df.columns:
-        return df.iloc[-1].to_dict()
+    if not df.empty and 'cal_goal' in df.columns: return df.iloc[-1].to_dict()
     return {'cal_goal': 2000, 'pro_goal': 150, 'carb_goal': 250, 'fat_goal': 70}
 
 def update_db_goals(cals, pro, carb, fat):
     new_goals = pd.DataFrame([{'cal_goal': int(cals), 'pro_goal': int(pro), 'carb_goal': int(carb), 'fat_goal': int(fat)}])
     write_sheet_safe(SHEET_GOALS, new_goals)
 
-# --- Callbacks (الحل لمشكلة الكراش) ---
+# Callbacks
 def sidebar_callback():
-    """تحديث عند التغيير اليدوي في السايدبار"""
-    update_db_goals(
-        st.session_state.user_cal_goal,
-        st.session_state.user_pro_goal,
-        st.session_state.user_carb_goal,
-        st.session_state.user_fat_goal
-    )
+    update_db_goals(st.session_state.user_cal_goal, st.session_state.user_pro_goal, st.session_state.user_carb_goal, st.session_state.user_fat_goal)
 
 def calculator_callback(cals, pro, carb, fat):
-    """تحديث عند الضغط على زر في الحاسبة"""
-    # نحدث القيم في session_state مباشرة
     st.session_state.user_cal_goal = int(cals)
     st.session_state.user_pro_goal = int(pro)
     st.session_state.user_carb_goal = int(carb)
     st.session_state.user_fat_goal = int(fat)
-    # ثم نحدث الداتابيز
     update_db_goals(cals, pro, carb, fat)
-    st.toast("✅ تم تحديث الخطة!")
+    st.toast("✅ Updated!")
 
-# تهيئة المتغيرات لأول مرة
 if 'user_cal_goal' not in st.session_state:
     g = get_db_goals()
     st.session_state.user_cal_goal = int(g.get('cal_goal', 2000))
@@ -157,26 +112,17 @@ if 'user_cal_goal' not in st.session_state:
     st.session_state.user_carb_goal = int(g.get('carb_goal', 250))
     st.session_state.user_fat_goal = int(g.get('fat_goal', 70))
 
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
+if "chat_history" not in st.session_state: st.session_state.chat_history = []
 
 # ==========================================
-# 4. الوظائف المنطقية (AI & Charts)
+# 4. الوظائف المنطقية
 # ==========================================
 def plot_donut_chart(title, current, total, color):
     safe_curr = int(current) if pd.notnull(current) else 0
     safe_tot = int(total) if pd.notnull(total) and total > 0 else 1
     remaining = max(0, safe_tot - safe_curr)
-    
-    fig = go.Figure(data=[go.Pie(
-        labels=['Used', 'Remaining'], values=[safe_curr, remaining], hole=.75,
-        marker_colors=[color, "#f1f3f5"], textinfo='none', hoverinfo='label+value', sort=False
-    )])
-    fig.update_layout(
-        showlegend=False, height=160, margin=dict(l=10, r=10, t=10, b=10),
-        paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-        annotations=[dict(text=f"<b style='font-size:20px; color:#2c3e50'>{safe_curr}</b><br><span style='font-size:12px; color:#95a5a6'>/{safe_tot}</span>", x=0.5, y=0.5, showarrow=False)]
-    )
+    fig = go.Figure(data=[go.Pie(labels=['Used', 'Remaining'], values=[safe_curr, remaining], hole=.75, marker_colors=[color, "#f1f3f5"], textinfo='none', hoverinfo='label+value', sort=False)])
+    fig.update_layout(showlegend=False, height=160, margin=dict(l=10, r=10, t=10, b=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', annotations=[dict(text=f"<b style='font-size:20px; color:#2c3e50'>{safe_curr}</b><br><span style='font-size:12px; color:#95a5a6'>/{safe_tot}g</span>", x=0.5, y=0.5, showarrow=False)])
     st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
     st.markdown(f"<div style='text-align:center; font-weight:bold; color:{color}; margin-top:-10px;'>{title}</div>", unsafe_allow_html=True)
 
@@ -217,23 +163,15 @@ def get_ai_coach_plan(weight, avg_cals, avg_pro, goal, location, level, days, me
 
 def calculate_calories(gender, age, weight, height, activity):
     bmr = (10 * weight) + (6.25 * height) - (5 * age) + (5 if gender == "ذكر" else -161)
-    multipliers = {"خامل": 1.2, "خفيف": 1.375, "متوسط": 1.55, "عالي": 1.725, "شاق": 1.9}
-    return bmr * multipliers.get(activity, 1.2)
+    return bmr * {"خامل": 1.2, "خفيف": 1.375, "متوسط": 1.55, "عالي": 1.725, "شاق": 1.9}.get(activity, 1.2)
 
 def save_entry(item, meal_type):
     df = read_sheet_safe(SHEET_ENTRIES)
-    new_id = 1 if df.empty else df['id'].max() + 1
+    new_id = 1 if df.empty else (df['id'].max() + 1)
     new_row = {
-        'id': int(new_id),
-        'date': str(date.today()),
-        'meal_type': meal_type,
-        'food_name': item['name'],
-        'quantity': float(item['qty']),
-        'unit': item['unit'],
-        'calories': float(item.get('cals', 0)),
-        'protein': float(item.get('pro', 0)),
-        'carbs': float(item.get('carb', 0)),
-        'fat': float(item.get('fat', 0))
+        'id': int(new_id), 'date': str(date.today()), 'meal_type': meal_type,
+        'food_name': item['name'], 'quantity': float(item['qty']), 'unit': item['unit'],
+        'calories': float(item.get('cals', 0)), 'protein': float(item.get('pro', 0)), 'carbs': float(item.get('carb', 0)), 'fat': float(item.get('fat', 0))
     }
     updated_df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
     write_sheet_safe(SHEET_ENTRIES, updated_df)
@@ -247,36 +185,26 @@ def delete_entry(entry_id):
 def get_data(d=1):
     df = read_sheet_safe(SHEET_ENTRIES)
     if df.empty: return df
-    
-    # تحويل التاريخ والتأكد منه
-    if 'date' not in df.columns: return pd.DataFrame()
-    
-    df['date'] = pd.to_datetime(df['date'], errors='coerce').dt.date
-    target = date.today()
-    
-    if d == 1:
-        return df[df['date'] == target]
-    else:
-        start = target - timedelta(days=d)
-        return df[df['date'] >= start]
+    try:
+        df['date'] = pd.to_datetime(df['date'], errors='coerce').dt.date
+        target = date.today()
+        if d == 1: return df[df['date'] == target].fillna(0)
+        else: 
+            start = target - timedelta(days=d)
+            return df[df['date'] >= start].fillna(0)
+    except Exception: return pd.DataFrame()
 
 def save_weight(w):
-    df = read_sheet_safe(SHEET_METRICS) # نستخدم نفس الشيت للتبسيط
-    today = str(date.today())
-    new_row = {'date': today, 'weight': w}
+    df = read_sheet_safe(SHEET_METRICS)
+    new_row = {'date': str(date.today()), 'weight': w}
     updated_df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
     write_sheet_safe(SHEET_METRICS, updated_df)
 
-def get_weight_data():
-    return read_sheet_safe(SHEET_METRICS)
+def get_weight_data(): return read_sheet_safe(SHEET_METRICS)
 
 def save_health_metrics(mu, fa, wa, st, hr, sl):
     df = read_sheet_safe(SHEET_METRICS)
-    new_row = {
-        'date': str(date.today()),
-        'muscle_mass': mu, 'fat_percentage': fa, 'water_percentage': wa,
-        'steps': st, 'avg_heart_rate': hr, 'sleep_hours': sl
-    }
+    new_row = {'date': str(date.today()), 'muscle_mass': mu, 'fat_percentage': fa, 'water_percentage': wa, 'steps': st, 'avg_heart_rate': hr, 'sleep_hours': sl}
     updated_df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
     write_sheet_safe(SHEET_METRICS, updated_df)
 
@@ -287,8 +215,7 @@ def get_latest_metrics():
 
 def get_cached_foods():
     df = read_sheet_safe(SHEET_LIBRARY)
-    if not df.empty and 'food_name' in df.columns:
-        return df['food_name'].tolist()
+    if not df.empty and 'food_name' in df.columns: return df['food_name'].tolist()
     return []
 
 def get_food_details_from_cache(fn):
@@ -309,14 +236,16 @@ def cache_food_item(i):
 def get_streak():
     df = read_sheet_safe(SHEET_ENTRIES)
     if df.empty or 'date' not in df.columns: return 0
-    dates = sorted(pd.to_datetime(df['date']).dt.date.unique(), reverse=True)
-    if not dates: return 0
-    streak = 0; check = dates[0]
-    if check != date.today() and check != date.today() - timedelta(1): return 0
-    for d in dates:
-        if d == check: streak+=1; check-=timedelta(1)
-        else: break
-    return streak
+    try:
+        dates = sorted(pd.to_datetime(df['date'], errors='coerce').dt.date.unique(), reverse=True)
+        if not dates: return 0
+        streak = 0; check = dates[0]
+        if check != date.today() and check != date.today() - timedelta(1): return 0
+        for d in dates:
+            if d == check: streak+=1; check-=timedelta(1)
+            else: break
+        return streak
+    except: return 0
 
 # ==========================================
 # 4. الواجهة الرئيسية
@@ -329,39 +258,33 @@ def main():
         st.markdown(f"<div style='background:#e3f2fd; border:1px solid #90caf9; padding:8px; border-radius:10px; color:#1565c0; text-align:center;'>🔥 {streak} Days Streak</div>", unsafe_allow_html=True)
         st.divider()
         st.header("⚙️ Goals")
-        
-        # استخدام Callbacks هو الحل للكراش
         st.number_input("Calories", 1000, 5000, key='user_cal_goal', step=50, on_change=sidebar_callback)
         st.number_input("Protein (g)", 50, 300, key='user_pro_goal', step=10, on_change=sidebar_callback)
         st.number_input("Carbs (g)", 50, 500, key='user_carb_goal', step=10, on_change=sidebar_callback)
         st.number_input("Fat (g)", 20, 200, key='user_fat_goal', step=5, on_change=sidebar_callback)
-        
         st.divider()
-        st.caption("🚀 استمر، النتائج قادمة.")
+        if st.button("🗑️ Reset Today"):
+            df = read_sheet_safe(SHEET_ENTRIES)
+            if not df.empty:
+                df['date'] = pd.to_datetime(df['date'], errors='coerce').dt.date
+                df = df[df['date'] != date.today()]
+                write_sheet_safe(SHEET_ENTRIES, df)
+                st.rerun()
 
     if not GEMINI_API_KEY: st.error("⚠️ يرجى تفعيل مفتاح API"); st.stop()
 
     st.title("X-Track Cloud ☁️")
 
-    tabs = st.tabs(["🏠 Home", "🍽️ Log", "🧮 Calculator", "⚖️ Body", "🏋️ Coach", "📈 Trends"])
+    tabs = st.tabs(["🏠 Home", "🍽️ Log", "🧮 Calculator", "⚖️ Body", "🏋️ Coach", "📅 History"])
 
     # === 1. Dashboard ===
     with tabs[0]:
         df = get_data(1)
-        
-        # حماية ضد البيانات الفارغة
         if not df.empty:
-            cals_today = df["calories"].sum()
-            pro_today = df["protein"].sum()
-            fat_today = df["fat"].sum()
-            carb_today = df["carbs"].sum()
-        else:
-            cals_today = 0; pro_today = 0; fat_today = 0; carb_today = 0
+            cals_today = df["calories"].sum(); pro_today = df["protein"].sum(); fat_today = df["fat"].sum(); carb_today = df["carbs"].sum()
+        else: cals_today=0; pro_today=0; fat_today=0; carb_today=0
         
-        context_data = {
-            'cal_goal': st.session_state.user_cal_goal, 'cal_curr': int(cals_today), 'cal_rem': int(st.session_state.user_cal_goal - cals_today),
-            'pro_goal': st.session_state.user_pro_goal, 'pro_curr': int(pro_today)
-        }
+        context_data = {'cal_goal': st.session_state.user_cal_goal, 'cal_curr': int(cals_today), 'cal_rem': int(st.session_state.user_cal_goal - cals_today), 'pro_goal': st.session_state.user_pro_goal, 'pro_curr': int(pro_today)}
 
         if cals_today >= st.session_state.user_cal_goal: st.toast("🎉 Goal Reached!")
 
@@ -388,8 +311,8 @@ def main():
 
         with col_ai:
             st.markdown("<div class='premium-card'>🤖 <b>AI Scan</b>", unsafe_allow_html=True)
-            ui = st.text_input("Type food...", placeholder="e.g. 2 eggs")
-            if st.button("Analyze", type="primary"):
+            ui = st.text_input("Type food...", placeholder="e.g. 2 eggs and toast")
+            if st.button("Analyze & Add", type="primary"):
                 if ui:
                     with st.spinner("Analyzing..."):
                         it, hc, sg = get_gemini_analysis(ui)
@@ -413,18 +336,23 @@ def main():
 
     # === 2. Log ===
     with tabs[1]:
-        st.markdown("### 🍽️ Log")
+        st.markdown("### 🍽️ Today's Log")
         if not df.empty:
             for index, row in df.iterrows():
-                # حماية ضد القيم الفارغة
                 cal = row.get('calories') or 0; pro = row.get('protein') or 0; carb = row.get('carbs') or 0; fat = row.get('fat') or 0
                 st.markdown(f"""
                 <div class="food-item-box">
-                    <div><b>{row['food_name']}</b> <small>{row['quantity']} {row['unit']}</small></div>
-                    <div style="text-align:right; color:#e74c3c;"><b>{int(cal)}</b> <span style="color:#666; font-size:11px;">P:{int(pro)} C:{int(carb)} F:{int(fat)}</span></div>
+                    <div>
+                        <div style="font-weight:bold; font-size:16px;">{row['food_name']}</div>
+                        <div style="color:#666; font-size:12px;">{row['quantity']} {row['unit']}</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="color:#e74c3c; font-weight:bold;">{int(cal)} cal</div>
+                        <div style="font-size:11px; color:#555;">P:{int(pro)} C:{int(carb)} F:{int(fat)}</div>
+                    </div>
                 </div>""", unsafe_allow_html=True)
                 if st.button("Delete", key=f"d_{row['id']}"): delete_entry(row['id']); st.rerun()
-        else: st.info("No logs yet.")
+        else: st.info("No food logged yet.")
 
     # === 3. Calculator ===
     with tabs[2]:
@@ -473,12 +401,21 @@ def main():
             mts=get_latest_metrics()
             with st.spinner("..."): st.markdown(get_ai_coach_plan(70,ac,ap,gl,pl,lv,dy,mts))
 
-    # === 6. Trends ===
+    # === 6. History (New) ===
     with tabs[5]:
-        st.markdown("### 📈 Analytics")
-        if not df.empty: 
-            fig = px.pie(df.groupby("meal_type")["calories"].sum().reset_index(), values="calories", names="meal_type", hole=0.6)
+        st.header("📅 30-Day History")
+        df_30 = get_data(30)
+        
+        if not df_30.empty:
+            daily = df_30.groupby("date")["calories"].sum().reset_index()
+            fig = px.bar(daily, x="date", y="calories", title="Daily Calories", text_auto=True, color_discrete_sequence=["#3498db"])
+            fig.add_hline(y=st.session_state.user_cal_goal, line_dash="dot", line_color="red", annotation_text="Goal")
             st.plotly_chart(fig, use_container_width=True)
+            
+            st.subheader("📋 Detailed Log")
+            st.dataframe(df_30.sort_values(by="date", ascending=False), use_container_width=True)
+        else:
+            st.info("No history yet.")
 
 if __name__ == "__main__":
     main()
